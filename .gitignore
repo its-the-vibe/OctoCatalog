@@ -8,6 +8,7 @@
 *.so
 *.dylib
 octocatalog
+OctoCatalog
 
 # Test binary, built with `go test -c`
 *.test
