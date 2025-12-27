@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  octocatalog:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+      - CONFIG_FILE=/catalog.json
+    restart: unless-stopped
