@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -140,11 +143,51 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 			return
 		}
 
-		// Parse the request
+		// Parse the request based on content type
 		var slackReq SlackRequest
-		if err := json.Unmarshal(body, &slackReq); err != nil {
-			log.Printf("Error parsing request: %v", err)
-			http.Error(w, "Bad request", http.StatusBadRequest)
+		contentType := r.Header.Get("Content-Type")
+		
+		// Parse media type to handle charset and other parameters
+		mediaType, _, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			// If we can't parse, fall back to simple string comparison
+			mediaType = strings.ToLower(strings.TrimSpace(contentType))
+		}
+		
+		if mediaType == "application/x-www-form-urlencoded" {
+			// Parse form-encoded data
+			values, err := url.ParseQuery(string(body))
+			if err != nil {
+				log.Printf("Error parsing form data: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+			
+			// Extract and decode the payload field
+			payloadStr := values.Get("payload")
+			if payloadStr == "" {
+				log.Printf("Missing payload field in form data")
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+			
+			// Decode JSON from payload
+			if err := json.Unmarshal([]byte(payloadStr), &slackReq); err != nil {
+				log.Printf("Error parsing payload JSON: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+		} else if mediaType == "application/json" || mediaType == "" {
+			// Handle direct JSON (backward compatibility)
+			// Empty content type is treated as JSON for backward compatibility
+			if err := json.Unmarshal(body, &slackReq); err != nil {
+				log.Printf("Error parsing request: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+		} else {
+			log.Printf("Unsupported content type: %s", contentType)
+			http.Error(w, "Unsupported Media Type", http.StatusUnsupportedMediaType)
 			return
 		}
 
