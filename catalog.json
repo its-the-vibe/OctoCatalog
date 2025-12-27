@@ -1,0 +1,28 @@
+[
+  {
+    "actionId": "SlackCompose",
+    "options": [
+      {
+        "text": "InnerGate",
+        "value": "InnerGate"
+      },
+      {
+        "text": "OctoSlack",
+        "value": "OctoSlack"
+      }
+    ]
+  },
+  {
+    "actionId": "SlashVibeIssue",
+    "options": [
+      {
+        "text": "Poppit",
+        "value": "Poppit"
+      },
+      {
+        "text": "SlackLiner",
+        "value": "SlackLiner"
+      }
+    ]
+  }
+]
