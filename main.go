@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -140,12 +141,40 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 			return
 		}
 
-		// Parse the request
+		// Parse the request based on content type
 		var slackReq SlackRequest
-		if err := json.Unmarshal(body, &slackReq); err != nil {
-			log.Printf("Error parsing request: %v", err)
-			http.Error(w, "Bad request", http.StatusBadRequest)
-			return
+		contentType := r.Header.Get("Content-Type")
+		
+		if contentType == "application/x-www-form-urlencoded" {
+			// Parse form-encoded data
+			values, err := url.ParseQuery(string(body))
+			if err != nil {
+				log.Printf("Error parsing form data: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+			
+			// Extract and decode the payload field
+			payloadStr := values.Get("payload")
+			if payloadStr == "" {
+				log.Printf("Missing payload field in form data")
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+			
+			// Decode JSON from payload
+			if err := json.Unmarshal([]byte(payloadStr), &slackReq); err != nil {
+				log.Printf("Error parsing payload JSON: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+		} else {
+			// Handle direct JSON (backward compatibility)
+			if err := json.Unmarshal(body, &slackReq); err != nil {
+				log.Printf("Error parsing request: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
 		}
 
 		log.Printf("Received request for action_id: %s", slackReq.ActionID)
