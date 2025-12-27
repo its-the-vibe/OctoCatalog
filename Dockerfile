@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25.5-alpine AS builder
 
 WORKDIR /app
 
@@ -20,9 +20,6 @@ FROM scratch
 
 # Copy the binary from builder
 COPY --from=builder /app/octocatalog /octocatalog
-
-# Copy the catalog configuration
-COPY catalog.json /catalog.json
 
 # Expose the port
 EXPOSE 8080
