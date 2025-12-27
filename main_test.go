@@ -216,3 +216,89 @@ func TestHandleRequest_InvalidJSON(t *testing.T) {
 		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
 	}
 }
+
+func TestHandleRequest_UnsupportedContentType(t *testing.T) {
+	setupTestCatalog()
+	secret := "test-secret"
+
+	// Create request with unsupported content type
+	body := []byte("some data")
+
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "text/plain")
+
+	// Add Slack signature headers
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, body)
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Call handler
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
+
+	// Check status code - should be 415 Unsupported Media Type
+	if status := rr.Code; status != http.StatusUnsupportedMediaType {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusUnsupportedMediaType)
+	}
+}
+
+func TestHandleRequest_FormEncodedWithCharset(t *testing.T) {
+	setupTestCatalog()
+	secret := "test-secret"
+
+	// Create a Slack request
+	slackReq := SlackRequest{
+		Type:     "block_suggestion",
+		ActionID: "test_action",
+		BlockID:  "test_block",
+		Value:    "test",
+	}
+
+	// Convert to JSON
+	jsonPayload, err := json.Marshal(slackReq)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	// Create form-encoded body with payload field
+	formData := url.Values{}
+	formData.Set("payload", string(jsonPayload))
+	body := formData.Encode()
+
+	// Create test request with charset in content type
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+
+	// Add Slack signature headers
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, []byte(body))
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Call handler
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
+
+	// Check status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	// Check response
+	var response SlackResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Verify options
+	if len(response.Options) != 2 {
+		t.Errorf("Expected 2 options, got %d", len(response.Options))
+	}
+}

@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -145,7 +147,14 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 		var slackReq SlackRequest
 		contentType := r.Header.Get("Content-Type")
 		
-		if contentType == "application/x-www-form-urlencoded" {
+		// Parse media type to handle charset and other parameters
+		mediaType, _, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			// If we can't parse, fall back to simple string comparison
+			mediaType = strings.ToLower(strings.TrimSpace(contentType))
+		}
+		
+		if mediaType == "application/x-www-form-urlencoded" {
 			// Parse form-encoded data
 			values, err := url.ParseQuery(string(body))
 			if err != nil {
@@ -168,13 +177,18 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 				http.Error(w, "Bad request", http.StatusBadRequest)
 				return
 			}
-		} else {
+		} else if mediaType == "application/json" || mediaType == "" {
 			// Handle direct JSON (backward compatibility)
+			// Empty content type is treated as JSON for backward compatibility
 			if err := json.Unmarshal(body, &slackReq); err != nil {
 				log.Printf("Error parsing request: %v", err)
 				http.Error(w, "Bad request", http.StatusBadRequest)
 				return
 			}
+		} else {
+			log.Printf("Unsupported content type: %s", contentType)
+			http.Error(w, "Unsupported Media Type", http.StatusUnsupportedMediaType)
+			return
 		}
 
 		log.Printf("Received request for action_id: %s", slackReq.ActionID)
