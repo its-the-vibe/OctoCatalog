@@ -202,9 +202,18 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 			}
 		}
 
+		// Filter options based on the query value (case-insensitive substring match)
+		query := strings.ToLower(slackReq.Value)
+		var filteredOptions []Option
+		for _, opt := range options {
+			if query == "" || strings.Contains(strings.ToLower(opt.Text), query) || strings.Contains(strings.ToLower(opt.Value), query) {
+				filteredOptions = append(filteredOptions, opt)
+			}
+		}
+
 		// Build response
-		slackOptions := make([]SlackOption, len(options))
-		for i, opt := range options {
+		slackOptions := make([]SlackOption, len(filteredOptions))
+		for i, opt := range filteredOptions {
 			slackOptions[i] = SlackOption{
 				Text: SlackText{
 					Type: "plain_text",
