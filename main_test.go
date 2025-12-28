@@ -320,303 +320,303 @@ func TestHandleRequest_FormEncodedWithCharset(t *testing.T) {
 }
 
 func TestHandleRequest_FilterByValue_EmptyQuery(t *testing.T) {
-setupTestCatalogWithMoreOptions()
-secret := "test-secret"
+	setupTestCatalogWithMoreOptions()
+	secret := "test-secret"
 
-// Create a Slack request with empty value (should return all options)
-slackReq := SlackRequest{
-Type:     "block_suggestion",
-ActionID: "test_action",
-BlockID:  "test_block",
-Value:    "",
-}
+	// Create a Slack request with empty value (should return all options)
+	slackReq := SlackRequest{
+		Type:     "block_suggestion",
+		ActionID: "test_action",
+		BlockID:  "test_block",
+		Value:    "",
+	}
 
-// Convert to JSON
-jsonBody, err := json.Marshal(slackReq)
-if err != nil {
-t.Fatalf("Failed to marshal JSON: %v", err)
-}
+	// Convert to JSON
+	jsonBody, err := json.Marshal(slackReq)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
-// Create test request
-req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
-req.Header.Set("Content-Type", "application/json")
+	// Create test request
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
-// Add Slack signature headers
-timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-signature := generateTestSignature(secret, timestamp, jsonBody)
-req.Header.Set("X-Slack-Request-Timestamp", timestamp)
-req.Header.Set("X-Slack-Signature", signature)
+	// Add Slack signature headers
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, jsonBody)
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
 
-// Create response recorder
-rr := httptest.NewRecorder()
+	// Create response recorder
+	rr := httptest.NewRecorder()
 
-// Call handler
-handler := handleRequest(secret)
-handler.ServeHTTP(rr, req)
+	// Call handler
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
 
-// Check status code
-if status := rr.Code; status != http.StatusOK {
-t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
-}
+	// Check status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-// Check response
-var response SlackResponse
-if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-t.Fatalf("Failed to decode response: %v", err)
-}
+	// Check response
+	var response SlackResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
-// Verify all 5 options are returned when query is empty
-if len(response.Options) != 5 {
-t.Errorf("Expected 5 options, got %d", len(response.Options))
-}
+	// Verify all 5 options are returned when query is empty
+	if len(response.Options) != 5 {
+		t.Errorf("Expected 5 options, got %d", len(response.Options))
+	}
 }
 
 func TestHandleRequest_FilterByValue_MatchingText(t *testing.T) {
-setupTestCatalogWithMoreOptions()
-secret := "test-secret"
+	setupTestCatalogWithMoreOptions()
+	secret := "test-secret"
 
-// Create a Slack request with a query that matches some options by text
-slackReq := SlackRequest{
-Type:     "block_suggestion",
-ActionID: "test_action",
-BlockID:  "test_block",
-Value:    "Slack",
-}
+	// Create a Slack request with a query that matches some options by text
+	slackReq := SlackRequest{
+		Type:     "block_suggestion",
+		ActionID: "test_action",
+		BlockID:  "test_block",
+		Value:    "Slack",
+	}
 
-// Convert to JSON
-jsonBody, err := json.Marshal(slackReq)
-if err != nil {
-t.Fatalf("Failed to marshal JSON: %v", err)
-}
+	// Convert to JSON
+	jsonBody, err := json.Marshal(slackReq)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
-// Create test request
-req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
-req.Header.Set("Content-Type", "application/json")
+	// Create test request
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
-// Add Slack signature headers
-timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-signature := generateTestSignature(secret, timestamp, jsonBody)
-req.Header.Set("X-Slack-Request-Timestamp", timestamp)
-req.Header.Set("X-Slack-Signature", signature)
+	// Add Slack signature headers
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, jsonBody)
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
 
-// Create response recorder
-rr := httptest.NewRecorder()
+	// Create response recorder
+	rr := httptest.NewRecorder()
 
-// Call handler
-handler := handleRequest(secret)
-handler.ServeHTTP(rr, req)
+	// Call handler
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
 
-// Check status code
-if status := rr.Code; status != http.StatusOK {
-t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
-}
+	// Check status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-// Check response
-var response SlackResponse
-if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-t.Fatalf("Failed to decode response: %v", err)
-}
+	// Check response
+	var response SlackResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
-// Should match "OctoSlack" and "SlackLiner" (2 options)
-if len(response.Options) != 2 {
-t.Errorf("Expected 2 options, got %d", len(response.Options))
-}
+	// Should match "OctoSlack" and "SlackLiner" (2 options)
+	if len(response.Options) != 2 {
+		t.Errorf("Expected 2 options, got %d", len(response.Options))
+	}
 
-// Verify the matched options
-foundOctoSlack := false
-foundSlackLiner := false
-for _, opt := range response.Options {
-if opt.Text.Text == "OctoSlack" {
-foundOctoSlack = true
-}
-if opt.Text.Text == "SlackLiner" {
-foundSlackLiner = true
-}
-}
+	// Verify the matched options
+	foundOctoSlack := false
+	foundSlackLiner := false
+	for _, opt := range response.Options {
+		if opt.Text.Text == "OctoSlack" {
+			foundOctoSlack = true
+		}
+		if opt.Text.Text == "SlackLiner" {
+			foundSlackLiner = true
+		}
+	}
 
-if !foundOctoSlack {
-t.Error("Expected to find 'OctoSlack' in results")
-}
-if !foundSlackLiner {
-t.Error("Expected to find 'SlackLiner' in results")
-}
+	if !foundOctoSlack {
+		t.Error("Expected to find 'OctoSlack' in results")
+	}
+	if !foundSlackLiner {
+		t.Error("Expected to find 'SlackLiner' in results")
+	}
 }
 
 func TestHandleRequest_FilterByValue_CaseInsensitive(t *testing.T) {
-setupTestCatalogWithMoreOptions()
-secret := "test-secret"
+	setupTestCatalogWithMoreOptions()
+	secret := "test-secret"
 
-// Create a Slack request with a lowercase query
-slackReq := SlackRequest{
-Type:     "block_suggestion",
-ActionID: "test_action",
-BlockID:  "test_block",
-Value:    "gate",
-}
+	// Create a Slack request with a lowercase query
+	slackReq := SlackRequest{
+		Type:     "block_suggestion",
+		ActionID: "test_action",
+		BlockID:  "test_block",
+		Value:    "gate",
+	}
 
-// Convert to JSON
-jsonBody, err := json.Marshal(slackReq)
-if err != nil {
-t.Fatalf("Failed to marshal JSON: %v", err)
-}
+	// Convert to JSON
+	jsonBody, err := json.Marshal(slackReq)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
-// Create test request
-req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
-req.Header.Set("Content-Type", "application/json")
+	// Create test request
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
-// Add Slack signature headers
-timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-signature := generateTestSignature(secret, timestamp, jsonBody)
-req.Header.Set("X-Slack-Request-Timestamp", timestamp)
-req.Header.Set("X-Slack-Signature", signature)
+	// Add Slack signature headers
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, jsonBody)
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
 
-// Create response recorder
-rr := httptest.NewRecorder()
+	// Create response recorder
+	rr := httptest.NewRecorder()
 
-// Call handler
-handler := handleRequest(secret)
-handler.ServeHTTP(rr, req)
+	// Call handler
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
 
-// Check status code
-if status := rr.Code; status != http.StatusOK {
-t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
-}
+	// Check status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-// Check response
-var response SlackResponse
-if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-t.Fatalf("Failed to decode response: %v", err)
-}
+	// Check response
+	var response SlackResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
-// Should match "InnerGate" and "Gateway" (case-insensitive)
-if len(response.Options) != 2 {
-t.Errorf("Expected 2 options, got %d", len(response.Options))
-}
+	// Should match "InnerGate" and "Gateway" (case-insensitive)
+	if len(response.Options) != 2 {
+		t.Errorf("Expected 2 options, got %d", len(response.Options))
+	}
 
-// Verify the matched options
-foundInnerGate := false
-foundGateway := false
-for _, opt := range response.Options {
-if opt.Text.Text == "InnerGate" {
-foundInnerGate = true
-}
-if opt.Text.Text == "Gateway" {
-foundGateway = true
-}
-}
+	// Verify the matched options
+	foundInnerGate := false
+	foundGateway := false
+	for _, opt := range response.Options {
+		if opt.Text.Text == "InnerGate" {
+			foundInnerGate = true
+		}
+		if opt.Text.Text == "Gateway" {
+			foundGateway = true
+		}
+	}
 
-if !foundInnerGate {
-t.Error("Expected to find 'InnerGate' in results")
-}
-if !foundGateway {
-t.Error("Expected to find 'Gateway' in results")
-}
+	if !foundInnerGate {
+		t.Error("Expected to find 'InnerGate' in results")
+	}
+	if !foundGateway {
+		t.Error("Expected to find 'Gateway' in results")
+	}
 }
 
 func TestHandleRequest_FilterByValue_NoMatch(t *testing.T) {
-setupTestCatalogWithMoreOptions()
-secret := "test-secret"
+	setupTestCatalogWithMoreOptions()
+	secret := "test-secret"
 
-// Create a Slack request with a query that doesn't match anything
-slackReq := SlackRequest{
-Type:     "block_suggestion",
-ActionID: "test_action",
-BlockID:  "test_block",
-Value:    "xyz123",
-}
+	// Create a Slack request with a query that doesn't match anything
+	slackReq := SlackRequest{
+		Type:     "block_suggestion",
+		ActionID: "test_action",
+		BlockID:  "test_block",
+		Value:    "xyz123",
+	}
 
-// Convert to JSON
-jsonBody, err := json.Marshal(slackReq)
-if err != nil {
-t.Fatalf("Failed to marshal JSON: %v", err)
-}
+	// Convert to JSON
+	jsonBody, err := json.Marshal(slackReq)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
-// Create test request
-req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
-req.Header.Set("Content-Type", "application/json")
+	// Create test request
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
-// Add Slack signature headers
-timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-signature := generateTestSignature(secret, timestamp, jsonBody)
-req.Header.Set("X-Slack-Request-Timestamp", timestamp)
-req.Header.Set("X-Slack-Signature", signature)
+	// Add Slack signature headers
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, jsonBody)
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
 
-// Create response recorder
-rr := httptest.NewRecorder()
+	// Create response recorder
+	rr := httptest.NewRecorder()
 
-// Call handler
-handler := handleRequest(secret)
-handler.ServeHTTP(rr, req)
+	// Call handler
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
 
-// Check status code
-if status := rr.Code; status != http.StatusOK {
-t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
-}
+	// Check status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-// Check response
-var response SlackResponse
-if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-t.Fatalf("Failed to decode response: %v", err)
-}
+	// Check response
+	var response SlackResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
-// Should return empty list when nothing matches
-if len(response.Options) != 0 {
-t.Errorf("Expected 0 options, got %d", len(response.Options))
-}
+	// Should return empty list when nothing matches
+	if len(response.Options) != 0 {
+		t.Errorf("Expected 0 options, got %d", len(response.Options))
+	}
 }
 
 func TestHandleRequest_FilterByValue_MatchByValue(t *testing.T) {
-setupTestCatalogWithMoreOptions()
-secret := "test-secret"
+	setupTestCatalogWithMoreOptions()
+	secret := "test-secret"
 
-// Create a Slack request with a query that matches by value field
-slackReq := SlackRequest{
-Type:     "block_suggestion",
-ActionID: "test_action",
-BlockID:  "test_block",
-Value:    "Poppit",
-}
+	// Create a Slack request with a query that matches by value field
+	slackReq := SlackRequest{
+		Type:     "block_suggestion",
+		ActionID: "test_action",
+		BlockID:  "test_block",
+		Value:    "Poppit",
+	}
 
-// Convert to JSON
-jsonBody, err := json.Marshal(slackReq)
-if err != nil {
-t.Fatalf("Failed to marshal JSON: %v", err)
-}
+	// Convert to JSON
+	jsonBody, err := json.Marshal(slackReq)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
-// Create test request
-req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
-req.Header.Set("Content-Type", "application/json")
+	// Create test request
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
 
-// Add Slack signature headers
-timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-signature := generateTestSignature(secret, timestamp, jsonBody)
-req.Header.Set("X-Slack-Request-Timestamp", timestamp)
-req.Header.Set("X-Slack-Signature", signature)
+	// Add Slack signature headers
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, jsonBody)
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
 
-// Create response recorder
-rr := httptest.NewRecorder()
+	// Create response recorder
+	rr := httptest.NewRecorder()
 
-// Call handler
-handler := handleRequest(secret)
-handler.ServeHTTP(rr, req)
+	// Call handler
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
 
-// Check status code
-if status := rr.Code; status != http.StatusOK {
-t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
-}
+	// Check status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-// Check response
-var response SlackResponse
-if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-t.Fatalf("Failed to decode response: %v", err)
-}
+	// Check response
+	var response SlackResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
-// Should match "Poppit" by value
-if len(response.Options) != 1 {
-t.Errorf("Expected 1 option, got %d", len(response.Options))
-}
+	// Should match "Poppit" by value
+	if len(response.Options) != 1 {
+		t.Errorf("Expected 1 option, got %d", len(response.Options))
+	}
 
-if len(response.Options) > 0 && response.Options[0].Text.Text != "Poppit" {
-t.Errorf("Expected 'Poppit', got '%s'", response.Options[0].Text.Text)
-}
+	if len(response.Options) > 0 && response.Options[0].Text.Text != "Poppit" {
+		t.Errorf("Expected 'Poppit', got '%s'", response.Options[0].Text.Text)
+	}
 }
