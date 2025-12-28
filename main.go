@@ -38,10 +38,10 @@ type Option struct {
 
 // SlackRequest represents the incoming Slack request
 type SlackRequest struct {
-	Type      string `json:"type"`
-	ActionID  string `json:"action_id"`
-	BlockID   string `json:"block_id"`
-	Value     string `json:"value"`
+	Type     string `json:"type"`
+	ActionID string `json:"action_id"`
+	BlockID  string `json:"block_id"`
+	Value    string `json:"value"`
 }
 
 // SlackResponse represents the response sent back to Slack
@@ -146,14 +146,14 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 		// Parse the request based on content type
 		var slackReq SlackRequest
 		contentType := r.Header.Get("Content-Type")
-		
+
 		// Parse media type to handle charset and other parameters
 		mediaType, _, err := mime.ParseMediaType(contentType)
 		if err != nil {
 			// If we can't parse, fall back to simple string comparison
 			mediaType = strings.ToLower(strings.TrimSpace(contentType))
 		}
-		
+
 		if mediaType == "application/x-www-form-urlencoded" {
 			// Parse form-encoded data
 			values, err := url.ParseQuery(string(body))
@@ -162,7 +162,7 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 				http.Error(w, "Bad request", http.StatusBadRequest)
 				return
 			}
-			
+
 			// Extract and decode the payload field
 			payloadStr := values.Get("payload")
 			if payloadStr == "" {
@@ -170,7 +170,7 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 				http.Error(w, "Bad request", http.StatusBadRequest)
 				return
 			}
-			
+
 			// Decode JSON from payload
 			if err := json.Unmarshal([]byte(payloadStr), &slackReq); err != nil {
 				log.Printf("Error parsing payload JSON: %v", err)
@@ -202,9 +202,18 @@ func handleRequest(signingSecret string) http.HandlerFunc {
 			}
 		}
 
+		// Filter options based on the query value (case-insensitive substring match)
+		query := strings.ToLower(slackReq.Value)
+		var filteredOptions []Option
+		for _, opt := range options {
+			if query == "" || strings.Contains(strings.ToLower(opt.Text), query) || strings.Contains(strings.ToLower(opt.Value), query) {
+				filteredOptions = append(filteredOptions, opt)
+			}
+		}
+
 		// Build response
-		slackOptions := make([]SlackOption, len(options))
-		for i, opt := range options {
+		slackOptions := make([]SlackOption, len(filteredOptions))
+		for i, opt := range filteredOptions {
 			slackOptions[i] = SlackOption{
 				Text: SlackText{
 					Type: "plain_text",
