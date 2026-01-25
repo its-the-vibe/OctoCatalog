@@ -114,6 +114,9 @@ func loadCatalog(filename string) error {
 	}
 
 	log.Printf("Loaded %d catalog entries", len(catalog))
+	for _, entry := range catalog {
+		log.Printf("  Action '%s': %d option(s)", entry.ActionID, len(entry.Options))
+	}
 	return nil
 }
 
