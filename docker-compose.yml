@@ -10,4 +10,4 @@ services:
       - CONFIG_FILE=/catalog.json
     volumes:
       - ./catalog.json:/catalog.json:ro
-    restart: unless-stopped
+    restart: on-failure:10
