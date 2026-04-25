@@ -1,5 +1,7 @@
 # OctoCatalog
 
+![CI](https://github.com/its-the-vibe/OctoCatalog/actions/workflows/ci.yaml/badge.svg)
+
 A service which provides a list of projects or repos to use as an external data source for Slack select dialog modals.
 
 ## Features
@@ -38,6 +40,17 @@ The catalog is defined in a JSON file (e.g., `catalog.json`) with the following 
     ]
   }
 ]
+```
+
+## Build, Test & Lint
+
+A `Makefile` is provided for common development tasks:
+
+```bash
+make build   # Compile the binary
+make test    # Run unit tests with coverage
+make lint    # Run go vet
+make ci      # Run build, test, and lint (used by CI)
 ```
 
 ## Running the Service

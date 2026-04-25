@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -618,5 +619,169 @@ func TestHandleRequest_FilterByValue_MatchByValue(t *testing.T) {
 
 	if len(response.Options) > 0 && response.Options[0].Text.Text != "Poppit" {
 		t.Errorf("Expected 'Poppit', got '%s'", response.Options[0].Text.Text)
+	}
+}
+
+func TestHandleRequest_MethodNotAllowed(t *testing.T) {
+	setupTestCatalog()
+	secret := "test-secret"
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusMethodNotAllowed {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusMethodNotAllowed)
+	}
+}
+
+func TestHandleRequest_InvalidSignature(t *testing.T) {
+	setupTestCatalog()
+	secret := "test-secret"
+
+	body := []byte(`{"type":"block_suggestion","action_id":"test_action","block_id":"b","value":""}`)
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Slack-Request-Timestamp", strconv.FormatInt(time.Now().Unix(), 10))
+	req.Header.Set("X-Slack-Signature", "v0=invalidsignature")
+
+	rr := httptest.NewRecorder()
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusUnauthorized {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusUnauthorized)
+	}
+}
+
+func TestHandleRequest_DirectJSON_InvalidBody(t *testing.T) {
+	setupTestCatalog()
+	secret := "test-secret"
+
+	body := []byte(`{invalid json}`)
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature := generateTestSignature(secret, timestamp, body)
+	req.Header.Set("X-Slack-Request-Timestamp", timestamp)
+	req.Header.Set("X-Slack-Signature", signature)
+
+	rr := httptest.NewRecorder()
+	handler := handleRequest(secret)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+	}
+}
+
+func TestVerifySlackSignature_InvalidTimestamp(t *testing.T) {
+	result := verifySlackSignature("secret", "not-a-number", []byte("body"), "v0=sig")
+	if result {
+		t.Error("Expected false for invalid timestamp, got true")
+	}
+}
+
+func TestVerifySlackSignature_StaleTimestamp(t *testing.T) {
+	// Timestamp more than 5 minutes in the past
+	stale := strconv.FormatInt(time.Now().Unix()-400, 10)
+	result := verifySlackSignature("secret", stale, []byte("body"), "v0=sig")
+	if result {
+		t.Error("Expected false for stale timestamp, got true")
+	}
+}
+
+func TestVerifySlackSignature_BadSecret(t *testing.T) {
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	body := []byte("test body")
+	// Sign with a different secret
+	sig := generateTestSignature("wrong-secret", timestamp, body)
+	result := verifySlackSignature("correct-secret", timestamp, body, sig)
+	if result {
+		t.Error("Expected false for wrong secret, got true")
+	}
+}
+
+func TestVerifySlackSignature_Valid(t *testing.T) {
+	secret := "my-signing-secret"
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	body := []byte("test body")
+	sig := generateTestSignature(secret, timestamp, body)
+	result := verifySlackSignature(secret, timestamp, body, sig)
+	if !result {
+		t.Error("Expected true for valid signature, got false")
+	}
+}
+
+func TestAbs(t *testing.T) {
+	tests := []struct {
+		input    int64
+		expected int64
+	}{
+		{5, 5},
+		{-5, 5},
+		{0, 0},
+	}
+	for _, tc := range tests {
+		got := abs(tc.input)
+		if got != tc.expected {
+			t.Errorf("abs(%d) = %d, want %d", tc.input, got, tc.expected)
+		}
+	}
+}
+
+func TestLoadCatalog_Success(t *testing.T) {
+	entries := []CatalogEntry{
+		{ActionID: "action1", Options: []Option{{Text: "Opt", Value: "opt"}}},
+	}
+	data, err := json.Marshal(entries)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+
+	f, err := os.CreateTemp("", "catalog-*.json")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(f.Name())
+
+	if _, err := f.Write(data); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	f.Close()
+
+	if err := loadCatalog(f.Name()); err != nil {
+		t.Errorf("loadCatalog returned unexpected error: %v", err)
+	}
+	if len(catalog) != 1 || catalog[0].ActionID != "action1" {
+		t.Errorf("catalog not loaded correctly: %+v", catalog)
+	}
+}
+
+func TestLoadCatalog_FileNotFound(t *testing.T) {
+	err := loadCatalog("/nonexistent/path/catalog.json")
+	if err == nil {
+		t.Error("Expected error for missing file, got nil")
+	}
+}
+
+func TestLoadCatalog_InvalidJSON(t *testing.T) {
+	f, err := os.CreateTemp("", "catalog-*.json")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(f.Name())
+
+	if _, err := f.WriteString("{invalid json}"); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	f.Close()
+
+	err = loadCatalog(f.Name())
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
 	}
 }
